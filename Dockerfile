@@ -17,10 +17,14 @@ RUN true && apk update && apk upgrade && \
 #RUN chmod +x /assp.sh
 
 #Exposing tcp ports
-EXPOSE 110 #pop3
-EXPOSE 143 #imap
-EXPOSE 993 #imaps
-EXPOSE 995 #pop3s
+#pop3
+EXPOSE 110
+#imap
+EXPOSE 143
+#imaps
+EXPOSE 993
+#pop3s
+EXPOSE 995
 
 #Adding volumes
 VOLUME ["/data"]
