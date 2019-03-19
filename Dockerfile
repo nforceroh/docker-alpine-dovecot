@@ -11,20 +11,13 @@ RUN true && apk update && apk upgrade && \
         apk add --update dovecot && \
         (rm "/tmp/"* 2>/dev/null || true) && (rm -rf /var/cache/apk/* 2>/dev/null || true)
 
-#COPY postfix.sh /postfix.sh
-#COPY assp.sh /assp.sh
-#RUN chmod +x /postfix.sh
-#RUN chmod +x /assp.sh
-
+RUN mkdir -p /data/vmail
+COPY rootfs/ /
+RUN addgroup -S -g 5000 vmail
+RUN adduser -S -D -H -u 5000 -G vmail -g "Dovecot Vmail" vmail
+RUN chown -R vmail:vmail /data/vmail
 #Exposing tcp ports
-#pop3
-EXPOSE 110
-#imap
-EXPOSE 143
-#imaps
-EXPOSE 993
-#pop3s
-EXPOSE 995
+EXPOSE 110 143 993 995
 
 #Adding volumes
 VOLUME ["/data"]
