@@ -9,7 +9,7 @@ ENV PGID=3000
 ENV TZ=America/New_York
 
 RUN true && apk update && apk upgrade && \
-        apk add --update dovecot dovecot-imap && \
+        apk add --update dovecot dovecot-mysql && \
         (rm "/tmp/"* 2>/dev/null || true) && (rm -rf /var/cache/apk/* 2>/dev/null || true)
 
 RUN mkdir -p /data/vmail
