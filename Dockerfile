@@ -1,6 +1,7 @@
 FROM nforceroh/docker-alpine-base
 
 MAINTAINER Sylvain Martin (sylvain@nforcer.com)
+#test
 
 ENV UMASK=000
 ENV PUID=3001
