@@ -19,8 +19,8 @@ RUN sed -i -e 's,#log_path = syslog,log_path = /dev/stderr,' \
            -e 's,#debug_log_path =,debug_log_path = /dev/stdout,' \
         /etc/dovecot/conf.d/10-logging.conf 
 
-RUN addgroup -S -g ${PGID} vmail
-RUN adduser -S -D -H -u ${PUID} -G vmail -g "Dovecot Vmail" vmail
+RUN addgroup -S -g 5000 vmail
+RUN adduser -S -D -H -u 5000 -G vmail -g "Dovecot Vmail" vmail
 RUN chown -R vmail:vmail /data/vmail
 RUN mkdir -p /srv && ln -s /data/vmail /srv/vmail
 
