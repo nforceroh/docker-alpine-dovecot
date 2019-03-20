@@ -146,11 +146,11 @@ default_pass_scheme = SHA512-CRYPT
 
 password_query = \
   SELECT username AS user, password, \
-    homedir AS userdb_home, 999 AS userdb_uid, 8 AS userdb_gid \
+    homedir AS userdb_home, 5000 AS userdb_uid, 5000 AS userdb_gid \
   FROM mailbox WHERE username = '%u'
 iterate_query = SELECT username AS user FROM mailbox
 
 user_query = SELECT homedir AS home, maildir AS mail, \
-concat('*:bytes=', quota) as quota_rule, 999 AS uid, 8 AS gid \
+concat('*:bytes=', quota) as quota_rule, 5000 AS uid, 5000 AS gid \
 FROM mailbox WHERE username = '%u'
 

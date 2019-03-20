@@ -19,6 +19,8 @@ passdb {
 userdb {
   driver = sql
   args = /etc/dovecot/dovecot-sql.conf.ext
+#   driver = static
+#   args = uid=5000 gid=5000 home=/data/vmail/%d/%n allow_all_users=yes
 }
 
 # If you don't have any user-specific settings, you can avoid the user_query

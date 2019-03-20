@@ -1,7 +1,6 @@
 FROM nforceroh/docker-alpine-base
 
 MAINTAINER Sylvain Martin (sylvain@nforcer.com)
-#test
 
 ENV UMASK=000
 ENV PUID=3001
@@ -20,13 +19,13 @@ RUN sed -i -e 's,#log_path = syslog,log_path = /dev/stderr,' \
            -e 's,#debug_log_path =,debug_log_path = /dev/stdout,' \
         /etc/dovecot/conf.d/10-logging.conf 
 
-RUN addgroup -S -g 5000 vmail
-RUN adduser -S -D -H -u 5000 -G vmail -g "Dovecot Vmail" vmail
+RUN addgroup -S -g ${PGID} vmail
+RUN adduser -S -D -H -u ${PUID} -G vmail -g "Dovecot Vmail" vmail
 RUN chown -R vmail:vmail /data/vmail
-RUN mkdir -p /srv && ln -s /srv/vmail /data/vmail
+RUN mkdir -p /srv && ln -s /data/vmail /srv/vmail
 
 #Exposing tcp ports
-EXPOSE 110 143 993 995
+EXPOSE 143 993
 
 #Adding volumes
 VOLUME ["/data"]
