@@ -1,34 +1,40 @@
 FROM nforceroh/docker-alpine-base
-
-MAINTAINER Sylvain Martin (sylvain@nforcer.com)
+LABEL maintainer="Sylvain Martin (sylvain@nforcer.com)"
 
 ENV UMASK=000
 ENV PUID=3001
 ENV PGID=3000
 ENV TZ=America/New_York
 
-RUN true && apk update && apk upgrade && \
-        apk add --update dovecot dovecot-mysql dovecot-lmtpd && \
-        (rm "/tmp/"* 2>/dev/null || true) && (rm -rf /var/cache/apk/* 2>/dev/null || true)
+RUN true && \
+    echo 'http://dl-cdn.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories && \
+	apk update && apk upgrade && \
+	apk add \
+		dovecot \
+		dovecot-mysql \
+		dovecot-lmtpd \
+		dovecot-pigeonhole-plugin \
+		mariadb-client \
+		rspamd-client \
+	&& \
+### Create Vmail User
+	addgroup -S -g 5000 vmail && \
+	adduser -S -D -H -u 5000 -G vmail -g "Dovecot Vmail" vmail \
+	&& \
+### Setup Container for Dovecot
+	rm -rf /etc/dovecot/* && \
+	mkdir -p /var/lib/dovecot && \
+	mkdir -p /var/log/dovecot \
+	&& \
+### Cleanup
+	rm -rf /var/cache/apk/* /usr/src/*
 
-RUN mkdir -p /data/vmail
-COPY rootfs/ /
-
-RUN sed -i -e 's,#log_path = syslog,log_path = /dev/stderr,' \
-           -e 's,#info_log_path =,info_log_path = /dev/stdout,' \
-           -e 's,#debug_log_path =,debug_log_path = /dev/stdout,' \
-        /etc/dovecot/conf.d/10-logging.conf 
-
-RUN addgroup -S -g 5000 vmail
-RUN adduser -S -D -H -u 5000 -G vmail -g "Dovecot Vmail" vmail
-RUN chown -R vmail:vmail /data/vmail
-RUN mkdir -p /srv && ln -s /data/vmail /srv/vmail
+### Add Files
+ADD install /
+#	COPY rootfs/ /
 
 #Exposing tcp ports
 EXPOSE 143 993
 
 #Adding volumes
-VOLUME ["/data"]
-
-# Running final script
-#ENTRYPOINT ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+VOLUME ["/var/mail"]
