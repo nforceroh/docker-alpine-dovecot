@@ -25,10 +25,10 @@ PASS_SCHEME=${PASS_SCHEME:-"MD5-CRYPT"}
 
 
 #### Create Vmail Dir
-	if [ ! -d "/var/vmail" ]; then
-		mkdir -p /var/vmail
+	if [ ! -d "/var/mail" ]; then
+		mkdir -p /var/mail
 	fi
-	chown -R vmail:vmail /var/vmail
+	chown -R vmail:mail /var/mail
 
 #### Set Permissions
     chown -R vmail:vmail /etc/dovecot/sieve
