@@ -1,7 +1,7 @@
 #!/usr/bin/with-contenv bash
 
 ### Set Defaults
-AUTH_TYPE=${AUTH_TYPE:-"SQLITE"}
+AUTH_TYPE=${AUTH_TYPE:-"MYSQL"}
 POSTMASTER=${POSTMASTER:-"postmaster@example.org"}
 HOSTNAME=${HOSTNAME:-"mail.example.org"}
 LOG_LEVEL=${LOG_LEVEL:-"INFO"}
@@ -9,11 +9,6 @@ LOG_PATH=${LOG_PATH:-"/var/log/dovecot/dovecot.log"}
 LOG_DEBUG_PATH=${LOG_DEBUG_PATH:-"/var/log/dovecot/dovecot.debug.log"}
 LOG_INFO_PATH=${LOG_INFO_PATH:-"/dev/stdout"}
 GREETING_TEXT=${GREETING_TEXT:-"Ready"}
-LDAP_TLS_CRT_FILENAME=${LDAP_TLS_CRT_FILENAME:-"ldap.crt"}
-LDAP_TLS_KEY_FILENAME=${LDAP_TLS_KEY_FILENAME:-"ldap.key"}
-LDAP_TLS_CA_CRT=${LDAP_TLS_CA_CRT_FILENAME:-"ca.crt"}
-LDAP_DEREF=${LDAP_DEFEF:-"never"}
-LDAP_SCOPE=${LDAP_SCOPE:-"subtree"}
 SSL_CRT_FILENAME=${SSL_CRT_FILENAME:-"mail.crt"}
 SSL_KEY_FILENAME=${SSL_KEY_FILENAME:-"mail.key"}
 PASS_SCHEME=${PASS_SCHEME:-"MD5-CRYPT"}
@@ -50,32 +45,6 @@ PASS_SCHEME=${PASS_SCHEME:-"MD5-CRYPT"}
 	setDovecotConf "log_path" "$LOG_PATH" /etc/dovecot/dovecot.conf
 	setDovecotConf "debug_log_path" "$LOG_DEBUG_PATH" /etc/dovecot/dovecot.conf
 	setDovecotConf "info_log_path" "$LOG_INFO_PATH" /etc/dovecot/dovecot.conf
-
-##
-## Logging verbosity and debugging.
-##
-
-# Log unsuccessful authentication attempts and the reasons why they failed.
-#auth_verbose = no
-
-# In case of password mismatches, log the attempted password. Valid values are
-# no, plain and sha1. sha1 can be useful for detecting brute force password
-# attempts vs. user simply trying the same password over and over again.
-# You can also truncate the value to n chars by appending ":n" (e.g. sha1:6).
-#auth_verbose_passwords = no
-
-# Even more verbose logging for debugging purposes. Shows for example SQL
-# queries.
-#auth_debug = no
-
-# In case of password mismatches, log the passwords and used scheme so the
-# problem can be debugged. Enabling this also enables auth_debug.
-#auth_debug_passwords = no
-
-# Enable mail process debugging. This can help you figure out why Dovecot
-# isn't finding your mails.
-#mail_debug = no
-
 
 #### Auth Type Setup
     case "$AUTH_TYPE" in
@@ -175,9 +144,6 @@ EOF
 
 
 fi
-
-
-
 
 mkdir -p /tmp/state
 touch /tmp/state/10-dovecot-init
