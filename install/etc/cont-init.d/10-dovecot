@@ -68,15 +68,16 @@ PASS_SCHEME=${PASS_SCHEME:-"MD5-CRYPT"}
 driver = mysql
 connect = host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$DB_USER password=$DB_PASS
 default_pass_scheme = $PASS_SCHEME
-password_query = SELECT CONCAT(name, '@', '%d') AS user, password as password, home as userdb_home, 8 AS userdb_uid, 8 AS userdb_gid FROM users WHERE name = '%n' AND domain = '%d'
-user_query = SELECT home, 8 AS uid, 8 AS gid, concat('*:storage=', quota, 'M') AS quota_rule FROM users WHERE name = '%n' AND domain = '%d'
+password_query = SELECT username AS user, password, homedir AS userdb_home, 999 AS userdb_uid, 8 AS userdb_gid FROM mailbox WHERE username = '%u' 
+iterate_query = SELECT username AS user FROM mailbox
+user_query = SELECT homedir AS home, maildir AS mail, concat('*:bytes=', quota) as quota_rule, 999 AS uid, 8 AS gid FROM mailbox WHERE username = '%u'
 EOF
 
 			sed -i -e "/connect = /c\connect = host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$DB_USER password=$DB_PASS" /etc/dovecot/pigeonhole-sieve.dict
 
 
 		##### Check to see if Table Exists
-		    if [ $(mysql -N -s -u $DB_USER -p$DB_PASS -h $DB_HOST -e "select count(*) from information_schema.tables where table_schema='${DB_NAME}' and table_name='expires';") -eq 1 ]; then
+		    if [ $(mysql -N -s -u $DB_USER -p$DB_PASS -h $DB_HOST -e "select count(*) from information_schema.tables where table_schema='${DB_NAME}' and table_name='mailbox';") -eq 1 ]; then
 		        echo "** [dovecot] MySQL Config Database Tables exist"
 		    else
 		    echo "** [dovecot] No MySQL Config Database Tables exist! Creating.."
