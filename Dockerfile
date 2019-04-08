@@ -10,6 +10,7 @@ RUN true && \
     echo 'http://dl-cdn.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories && \
 	apk update && apk upgrade && \
 	apk add \
+		bash \
 		dovecot \
 		dovecot-mysql \
 		dovecot-lmtpd \
@@ -31,7 +32,6 @@ RUN true && \
 
 ### Add Files
 ADD install /
-#	COPY rootfs/ /
 
 #Exposing tcp ports
 EXPOSE 143 993
