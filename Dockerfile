@@ -1,15 +1,23 @@
-FROM nforceroh/docker-alpine-base
+FROM nforceroh/d_alpine-s6:edge
 LABEL maintainer="Sylvain Martin (sylvain@nforcer.com)"
 
-ENV UMASK=000
-ENV PUID=3001
-ENV PGID=3000
-ENV TZ=America/New_York
+ENV UMASK=000 \
+	PUID=3001 \
+	PGID=3000 \
+	TZ=America/New_York \
+	DB_HOST=db \
+	DB_PORT=3306 \
+	DB_NAME=mail \
+	DB_USER=user \
+	DB_PASS=password \
+	VMAIL_UID=5000 \
+	VMAIL_GID=12
 
-RUN true && \
-    echo 'http://dl-cdn.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories && \
-	apk update && apk upgrade && \
-	apk add \
+
+RUN echo "Installing Dovecot" \
+	&& apk update \
+	&& apk upgrade \
+	&& apk add \
 		bash \
 		dovecot \
 		dovecot-mysql \
@@ -17,24 +25,19 @@ RUN true && \
 		dovecot-pigeonhole-plugin \
 		mariadb-client \
 		rspamd-client \
-	&& \
 ### Create Vmail User
-	addgroup -S -g 5000 vmail && \
-	adduser -S -D -H -u 5000 -G vmail -g "Dovecot Vmail" vmail \
-	&& \
+	&& adduser -S -D -H -u ${VMAIL_UID} -G mail -g "Dovecot Vmail" vmail \
 ### Setup Container for Dovecot
-	rm -rf /etc/dovecot/* && \
-	mkdir -p /var/lib/dovecot && \
-	mkdir -p /var/log/dovecot \
-	&& \
+#	mkdir -p /var/lib/dovecot && \
+	&& mkdir -p /var/log/dovecot \
 ### Cleanup
-	rm -rf /var/cache/apk/* /usr/src/*
+	&& rm -rf /var/cache/apk/* /usr/src/*
 
 ### Add Files
 ADD install /
 
 #Exposing tcp ports
-EXPOSE 143 993
+EXPOSE 24 143 993 3333
 
 #Adding volumes
-VOLUME ["/var/mail"]
+VOLUME ["/data"]
