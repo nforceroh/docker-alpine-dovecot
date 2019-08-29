@@ -1,7 +1,6 @@
 #!/usr/bin/with-contenv bash
 
 ### Set Defaults
-AUTH_TYPE=${AUTH_TYPE:-"MYSQL"}
 POSTMASTER=${POSTMASTER:-"postmaster@example.org"}
 HOSTNAME=${HOSTNAME:-"mail.example.org"}
 LOG_LEVEL=${LOG_LEVEL:-"INFO"}
@@ -11,140 +10,97 @@ LOG_INFO_PATH=${LOG_INFO_PATH:-"/dev/stdout"}
 GREETING_TEXT=${GREETING_TEXT:-"Ready"}
 SSL_CRT_FILENAME=${SSL_CRT_FILENAME:-"mail.crt"}
 SSL_KEY_FILENAME=${SSL_KEY_FILENAME:-"mail.key"}
-PASS_SCHEME=${PASS_SCHEME:-"MD5-CRYPT"}
-
+PASS_SCHEME=${PASS_SCHEME:-"SHA512-CRYPT"}
 
 ### Config Helper
-	function setDovecotConf {
-		KEY="$1"
-		VALUE="$2"
-		FILE="$3"
-		echo "Setting conf: $KEY=$VALUE in ($FILE)"
-		sed -i -e "s#^\s*.$KEY\s*=.*\$#$KEY=$VALUE#g" $FILE
-	}
-
+function setConf {
+	KEY="$1"
+	VALUE="$2"
+	FILE="$3"
+	echo "Setting conf: $KEY=$VALUE in ($FILE)"
+	sed -i -e "s#^\s*.$KEY\s*=.*\$#$KEY=$VALUE#g" $FILE
+}
 
 #### Create Vmail Dir
-	if [ ! -d "/var/mail" ]; then
-		mkdir -p /var/mail
-	fi
-	chown -R vmail:mail /var/mail
-
-#### Set Permissions
-    chown -R vmail:vmail /etc/dovecot/sieve
-    chmox +x /etc/dovecot/sieve/bin/*
-
-#### Set Hostname
-	setDovecotConf "hostname" "$HOSTNAME" /etc/dovecot/dovecot.conf
-	setDovecotConf "postmaster_address" "$POSTMASTER" /etc/dovecot/dovecot.conf
-
-#### Set Greeting
-    setDovecotConf "login_greeting" "$GREETING_TEXT" /etc/dovecot/dovecot.conf
-	
-#### Set Loglevel Dovecot Loglevel
-	setDovecotConf "log_path" "$LOG_PATH" /etc/dovecot/dovecot.conf
-	setDovecotConf "debug_log_path" "$LOG_DEBUG_PATH" /etc/dovecot/dovecot.conf
-	setDovecotConf "info_log_path" "$LOG_INFO_PATH" /etc/dovecot/dovecot.conf
-
-#### Auth Type Setup
-    case "$AUTH_TYPE" in
-      "MYSQL" | "mysql")
-			DB_PORT=${DB_PORT:-"3306"}
-		##### Check MySQL Connectivity			
-		    while true; do
-		      mysqlcmd='mysql -u'$DB_USER' -h'$DB_HOST' -p'$DB_PASS 
-		      out="`$mysqlcmd -e "SELECT COUNT(*) FROM information_schema.FILES;" 2>&1`"
-		      echo "$out" | grep -E "COUNT|Enter" 2>&1 > /dev/null
-		      if [ $? -eq 0 ]; then
-		        echo "** [dovecot] MySQL Database Connection Established"
-		        break
-		      fi
-		      echo "** [dovecot] MySQL Database Connection Not avilable, retrying.."
-		      sleep 2
-		    done
-
-		##### Update Dovecot SQL Configuration
-			cat <<EOF > /etc/dovecot/dovecot-sql.conf
-driver = mysql
-connect = host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$DB_USER password=$DB_PASS
-default_pass_scheme = $PASS_SCHEME
-password_query = SELECT username AS user, password, homedir AS userdb_home, 999 AS userdb_uid, 8 AS userdb_gid FROM mailbox WHERE username = '%u' 
-iterate_query = SELECT username AS user FROM mailbox
-user_query = SELECT homedir AS home, maildir AS mail, concat('*:bytes=', quota) as quota_rule, 999 AS uid, 8 AS gid FROM mailbox WHERE username = '%u'
-EOF
-
-			sed -i -e "/connect = /c\connect = host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$DB_USER password=$DB_PASS" /etc/dovecot/pigeonhole-sieve.dict
-
-
-		##### Check to see if Table Exists
-		    if [ $(mysql -N -s -u $DB_USER -p$DB_PASS -h $DB_HOST -e "select count(*) from information_schema.tables where table_schema='${DB_NAME}' and table_name='mailbox';") -eq 1 ]; then
-		        echo "** [dovecot] MySQL Config Database Tables exist"
-		    else
-		    echo "** [dovecot] No MySQL Config Database Tables exist! Creating.."
-		    mysql -u$DB_USER -h$DB_HOST -p$DB_PASS $DB_NAME</assets/dovecot/sql/schema.sql
-		    echo '** [dovecot] Database Configured to '$DB_HOST'/'$DB_NAME
-		fi	      
-
-		sed -i -e 's/##changeme##/sql/g' /etc/dovecot/dovecot.conf
-	    ;;
-    esac
-
-### SSL Configuration
-	if [ ! -f /assets/certs/$SSL_CRT_FILENAME ] || [ ! -f /assets/certs/$SSL_KEY_FILENAME ]; then
-	    echo "** [dovecot] SSL Key or certificate not found. Generating self-signed certificates"
-		mkdir -p /assets/certs
-	    openssl genrsa -out /assets/certs/$SSL_KEY_FILENAME
-	    openssl req -new -key /assets/certs/$SSL_KEY_FILENAME -out /assets/certs/${SSL_CRT_FILENAME%.*}.csr -subj "/CN=dovecot"
-	    openssl x509 -req -days 3650 -in /assets/certs/${SSL_CRT_FILENAME%.*}.csr -signkey /assets/certs/$SSL_KEY_FILENAME -out /assets/certs/$SSL_CRT_FILENAME
-	fi
-
-	setDovecotConf "ssl_cert" "</assets/certs/$SSL_CRT_FILENAME" /etc/dovecot/dovecot.conf
-	setDovecotConf "ssl_key" "</assets/certs/$SSL_KEY_FILENAME" /etc/dovecot/dovecot.conf
-
-    if [ ! -f "/assets/certs/server.pem" ] || [ ! -f "/assets/certs/server.key" ]; then	        
-	 	    cat <<EOF > /tmp/openssl.cnf
-[ req ]
-default_bits = 1024
-encrypt_key = yes
-distinguished_name = req_dn
-x509_extensions = cert_type
-prompt = no
-
-[ req_dn ]
-# country (2 letter code)
-C=XX
-
-# State or Province Name (full name)
-ST=XX
-
-# Locality Name (eg. city)
-L=Test Server
-
-# Organization (eg. company)
-O=Dovecot
-
-# Organizational Unit Name (eg. section)
-OU=IMAP server
-
-# Common Name (*.example.com is also possible)
-CN=imap.example.com
-
-# E-mail contact
-emailAddress=postmaster@example.com
-
-[ cert_type ]
-nsCertType = server	 	
-EOF
-
-	 	openssl req -new -x509 -nodes -days 365 \
-	                -config /tmp/openssl.cnf \
-	                -out /assets/certs/server.pem \
-	                -keyout /assets/certs/server.key
-	 	chmod 0600 /assets/certs/server.key
-	    rm -rf /tmp/openssl.cnf
-
-
+if [ ! -d "/data/mail" ]; then
+	mkdir -p /data/mail
+	chown -R vmail:mail /data/mail
 fi
 
-mkdir -p /tmp/state
-touch /tmp/state/10-dovecot-init
+setConf "hostname" "$HOSTNAME" /etc/dovecot/conf.d/15-lda.conf
+setConf "postmaster_address" "$POSTMASTER" /etc/dovecot/conf.d/15-lda.conf
+setConf "auth_mechanisms" "plain login cram-md5" /etc/dovecot/conf.d/10-auth.conf 
+setConf "mail_uid" "vmail" /etc/dovecot/conf.d/10-mail.conf
+setConf "mail_gid" "mail" /etc/dovecot/conf.d/10-mail.conf
+
+#### Set Greeting
+setConf "login_greeting" "$GREETING_TEXT" /etc/dovecot/dovecot.conf
+
+#### Set Loglevel Dovecot Loglevel
+setConf "log_path" "$LOG_PATH" /etc/dovecot/conf.d/10-logging.conf
+setConf "debug_log_path" "$LOG_DEBUG_PATH" /etc/dovecot/conf.d/10-logging.conf
+setConf "info_log_path" "$LOG_INFO_PATH" /etc/dovecot/conf.d/10-logging.conf
+### DEBUGGING
+setConf "auth_debug_passwords" "yes" /etc/dovecot/conf.d/10-logging.conf
+setConf "log_debug =" "yes" /etc/dovecot/conf.d/10-logging.conf
+setConf "mail_debug" "yes" /etc/dovecot/conf.d/10-logging.conf
+setConf "auth_debug" "yes" /etc/dovecot/conf.d/10-logging.conf
+setConf "auth_verbose" "yes" /etc/dovecot/conf.d/10-logging.conf
+
+#### Turn on SQL auth
+sed -i -e 's/^!include auth-passwdfile.conf.ext/#!include auth-passwdfile.conf.ext/g' /etc/dovecot/conf.d/10-auth.conf
+sed -i -e 's/^#!include auth-sql.conf.ext/!include auth-sql.conf.ext/g' /etc/dovecot/conf.d/10-auth.conf
+
+echo "Setting up dovecot-sql.conf.ext"
+cat <<EOF >/etc/dovecot/dovecot-sql.conf.ext
+driver = mysql
+connect = host=${DB_HOST} port=${DB_PORT} dbname=${DB_NAME} user=${DB_USER} password=${DB_PASS}
+default_pass_scheme = ${PASS_SCHEME}
+password_query = SELECT username AS user, password, homedir AS userdb_home, ${VMAIL_UID} AS userdb_uid, ${VMAIL_GID} AS userdb_gid FROM mailbox WHERE username = '%u'
+iterate_query = SELECT username AS user FROM mailbox
+user_query = SELECT homedir AS home, maildir AS mail, concat('*:bytes=', quota) as quota_rule, ${VMAIL_UID} AS uid, ${VMAIL_GID} AS gid FROM mailbox WHERE username = '%u'
+EOF
+
+echo "Setting userdb overrides"
+sed -i -e 's#^userdb.*#&\n  override_fields = mail_home=/data/mail/%d/%n uid=vmail gid=mail mail_location=maildir:~/mail#g' /etc/dovecot/conf.d/auth-sql.conf.ext 
+
+echo "Enabling doveadm listener"
+cat <<EOF >/etc/dovecot/conf.d/91-doveadm.conf
+# Create a listener for doveadm-server
+service doveadm {
+  user = vmail
+  group = mail
+  inet_listener {
+    port = 3333
+  }
+}
+doveadm_password = {SSHA512}BQJ4V39+OTGfymFJ7mNRAGrX93Eks1hkZiQqXKc9I54INIVdbpnAPa7KerHK2dOLzTAmiKEBeGk1dKKVRw/4FAHe7qk=
+EOF
+
+
+### SSL Configuration
+if [ ! -f /data/ssl/dovecot.pem ] || [ ! -f /data/ssl/dovecot.key ]; then
+	echo "** [dovecot] SSL Key or certificate not found. Generating self-signed certificates"
+	mkdir -p /data/ssl
+	openssl genrsa -out /data/ssl/$SSL_KEY_FILENAME
+	openssl req -new -key /data/ssl/$SSL_KEY_FILENAME -out /data/ssl/${SSL_CRT_FILENAME%.*}.csr -subj "/CN=dovecot"
+	openssl x509 -req -days 3650 -in /data/ssl/${SSL_CRT_FILENAME%.*}.csr -signkey /data/ssl/$SSL_KEY_FILENAME -out /data/ssl/$SSL_CRT_FILENAME
+fi
+echo "Setting new certificate location"
+sed -i \
+  -e 's#^ssl_cert.*$#ssl_cert = </data/ssl/dovecot.pem#g' \
+  -e 's#^ssl_key.*$#ssl_key = </data/ssl/dovecot.key#g' \
+ /etc/dovecot/conf.d/10-ssl.conf
+
+echo "Setting lmtp listener"
+cat <<EOF >/etc/dovecot/conf.d/20-lmtp.conf
+service lmtp {
+  inet_listener lmtp {
+    port = 24
+  }
+
+  unix_listener lmtp {
+    #mode = 0666
+  }
+}
+EOF

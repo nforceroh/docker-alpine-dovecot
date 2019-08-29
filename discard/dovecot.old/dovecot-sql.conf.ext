@@ -144,13 +144,7 @@ default_pass_scheme = SHA512-CRYPT
 # Query to get a list of all usernames.
 #iterate_query = SELECT username AS user FROM users
 
-password_query = \
-  SELECT username AS user, password, \
-    homedir AS userdb_home, 5000 AS userdb_uid, 5000 AS userdb_gid \
-  FROM mailbox WHERE username = '%u'
+password_query = SELECT username AS user, password FROM mailbox WHERE username = '%u'
 iterate_query = SELECT username AS user FROM mailbox
-
-user_query = SELECT homedir AS home, maildir AS mail, \
-concat('*:bytes=', quota) as quota_rule, 5000 AS uid, 5000 AS gid \
-FROM mailbox WHERE username = '%u'
+user_query = SELECT homedir AS home FROM mailbox WHERE username = '%u'
 
