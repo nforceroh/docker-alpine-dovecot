@@ -2,14 +2,14 @@
 
 ### Set Defaults
 POSTMASTER=${POSTMASTER:-"postmaster@example.org"}
-HOSTNAME=${HOSTNAME:-"mail.example.org"}
+HOSTNAME=${HOSTNAME:-"imap.example.org"}
 LOG_LEVEL=${LOG_LEVEL:-"INFO"}
 LOG_PATH=${LOG_PATH:-"/var/log/dovecot/dovecot.log"}
 LOG_DEBUG_PATH=${LOG_DEBUG_PATH:-"/var/log/dovecot/dovecot.debug.log"}
 LOG_INFO_PATH=${LOG_INFO_PATH:-"/dev/stdout"}
 GREETING_TEXT=${GREETING_TEXT:-"Ready"}
-SSL_CRT_FILENAME=${SSL_CRT_FILENAME:-"mail.crt"}
-SSL_KEY_FILENAME=${SSL_KEY_FILENAME:-"mail.key"}
+SSL_CRT_FILENAME=${SSL_CRT_FILENAME:-"dovecot.crt"}
+SSL_KEY_FILENAME=${SSL_KEY_FILENAME:-"dovecot.key"}
 PASS_SCHEME=${PASS_SCHEME:-"SHA512-CRYPT"}
 
 ### Config Helper
@@ -24,15 +24,29 @@ function setConf {
 #### Create Vmail Dir
 if [ ! -d "/data/mail" ]; then
 	mkdir -p /data/mail
-	chown -R vmail:mail /data/mail
+	chown -R vmail:mail /data /data/mail
 fi
+
+### Setup Persistent Storage
+if [ ! -d /var/run/dovecot ]; then
+	mkdir -p /var/run/dovecot
+fi
+chown -R vmail:mail /var/run/dovecot
 
 setConf "hostname" "$HOSTNAME" /etc/dovecot/conf.d/15-lda.conf
 setConf "postmaster_address" "$POSTMASTER" /etc/dovecot/conf.d/15-lda.conf
+setConf "recipient_delimiter" "+" /etc/dovecot/conf.d/15-lda.conf
+setConf "lda_mailbox_autocreate " "yes" /etc/dovecot/conf.d/15-lda.conf
+setConf "lda_mailbox_autosubscribe " "yes" /etc/dovecot/conf.d/15-lda.conf
+setConf "mail_plugins" "\$mail_plugins sieve" /etc/dovecot/conf.d/15-lda.conf
+
+setConf "mail_plugins" "\$mail_plugins imap_sieve" /etc/dovecot/conf.d/20-imap.conf 
+
 setConf "auth_mechanisms" "plain login cram-md5" /etc/dovecot/conf.d/10-auth.conf 
 setConf "mail_uid" "vmail" /etc/dovecot/conf.d/10-mail.conf
 setConf "mail_gid" "mail" /etc/dovecot/conf.d/10-mail.conf
 
+setConf "default_vsz_limit" "256M" /etc/dovecot/conf.d/10-master.conf
 #### Set Greeting
 setConf "login_greeting" "$GREETING_TEXT" /etc/dovecot/dovecot.conf
 
@@ -42,7 +56,6 @@ setConf "debug_log_path" "$LOG_DEBUG_PATH" /etc/dovecot/conf.d/10-logging.conf
 setConf "info_log_path" "$LOG_INFO_PATH" /etc/dovecot/conf.d/10-logging.conf
 ### DEBUGGING
 setConf "auth_debug_passwords" "yes" /etc/dovecot/conf.d/10-logging.conf
-setConf "log_debug =" "yes" /etc/dovecot/conf.d/10-logging.conf
 setConf "mail_debug" "yes" /etc/dovecot/conf.d/10-logging.conf
 setConf "auth_debug" "yes" /etc/dovecot/conf.d/10-logging.conf
 setConf "auth_verbose" "yes" /etc/dovecot/conf.d/10-logging.conf
@@ -88,7 +101,7 @@ if [ ! -f /data/ssl/dovecot.pem ] || [ ! -f /data/ssl/dovecot.key ]; then
 fi
 echo "Setting new certificate location"
 sed -i \
-  -e 's#^ssl_cert.*$#ssl_cert = </data/ssl/dovecot.pem#g' \
+  -e 's#^ssl_cert.*$#ssl_cert = </data/ssl/dovecot.crt#g' \
   -e 's#^ssl_key.*$#ssl_key = </data/ssl/dovecot.key#g' \
  /etc/dovecot/conf.d/10-ssl.conf
 
@@ -96,11 +109,26 @@ echo "Setting lmtp listener"
 cat <<EOF >/etc/dovecot/conf.d/20-lmtp.conf
 service lmtp {
   inet_listener lmtp {
-    port = 24
+     port = 24
   }
-
+    
   unix_listener lmtp {
     #mode = 0666
   }
 }
+
+protocol lmtp {
+  mail_plugins = \$mail_plugins sieve
+}
 EOF
+
+echo "Adding auth inet listener"
+sed -i '/service auth {/a\ inet_listener {\nport = 12345\n }' /etc/dovecot/conf.d/10-master.conf
+
+cp -r /configfiles/sieve/* /data/sieve
+chown -R vmail:mail /data
+
+mkdir -p /tmp/state
+touch /tmp/state/dovecot-init
+
+

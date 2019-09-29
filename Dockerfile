@@ -26,7 +26,7 @@ RUN echo "Installing Dovecot" \
 		mariadb-client \
 		rspamd-client \
 ### Create Vmail User
-	&& adduser -S -D -H -u ${VMAIL_UID} -G mail -g "Dovecot Vmail" vmail \
+	&& adduser -S -D -H -u ${VMAIL_UID} -G mail -g "Dovecot vMail" vmail \
 ### Setup Container for Dovecot
 #	mkdir -p /var/lib/dovecot && \
 	&& mkdir -p /var/log/dovecot \
@@ -36,8 +36,10 @@ RUN echo "Installing Dovecot" \
 ### Add Files
 ADD install /
 
-#Exposing tcp ports
-EXPOSE 24 143 993 3333
+# dovecot
+#   24 ltmp, 110 pop3, 143 imap, 993 imaps, 4190 sieve, 12345 sasl
+EXPOSE 24 110 143 993 4190 12345
 
 #Adding volumes
 VOLUME ["/data"]
+ENTRYPOINT [ "/init" ]

@@ -1,5 +1,7 @@
 #!/usr/bin/with-contenv bash
 
-echo ''
-echo '** Starting Dovecot'
-exec dovecot -F
+while [ ! -f /tmp/state/dovecot-init ]; do
+  sleep 1
+done
+
+/usr/sbin/dovecot -F
