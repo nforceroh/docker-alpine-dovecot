@@ -1,4 +1,4 @@
 /data/mail true vmail:mail 0644 0755
 /etc/dovecot true vmail:mail
 /data/sieve true vmail:mail
-/data/sieve/bin true  vmail:mail 0644 0755
+/data/sieve/bin true vmail:mail 0644 0755
