@@ -25,6 +25,7 @@ gitpush:
 push:
 	@ echo "Building $(IMG_NAME):$(VERSION) image"
 	docker push $(IMG_REPO)/$(IMG_NAME):$(VERSION)
-
+	docker push $(IMG_REPO)/$(IMG_NAME):latest
+	
 end:
 	@echo "Done!"
