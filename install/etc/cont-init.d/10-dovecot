@@ -56,15 +56,26 @@ setConf "debug_log_path" "$LOG_DEBUG_PATH" /etc/dovecot/conf.d/10-logging.conf
 setConf "info_log_path" "$LOG_INFO_PATH" /etc/dovecot/conf.d/10-logging.conf
 ### DEBUGGING
 setConf "auth_debug_passwords" "yes" /etc/dovecot/conf.d/10-logging.conf
-setConf "mail_debug" "yes" /etc/dovecot/conf.d/10-logging.conf
-setConf "auth_debug" "yes" /etc/dovecot/conf.d/10-logging.conf
-setConf "auth_verbose" "yes" /etc/dovecot/conf.d/10-logging.conf
+setConf "mail_debug" "no" /etc/dovecot/conf.d/10-logging.conf
+setConf "auth_debug" "no" /etc/dovecot/conf.d/10-logging.conf
+setConf "auth_verbose" "no" /etc/dovecot/conf.d/10-logging.conf
 
 #### Turn on SQL auth
-sed -i -e 's/^!include auth-passwdfile.conf.ext/#!include auth-passwdfile.conf.ext/g' /etc/dovecot/conf.d/10-auth.conf
-sed -i -e 's/^#!include auth-sql.conf.ext/!include auth-sql.conf.ext/g' /etc/dovecot/conf.d/10-auth.conf
+echo "Setting up /etc/dovecot/conf.d/10-auth.conf"
+cat <<EOF > /etc/dovecot/conf.d/10-auth.conf
+auth_mechanisms = plain
+#!include auth-deny.conf.ext
+#!include auth-master.conf.ext
+#!include auth-passwdfile.conf.ext
+!include auth-sql.conf.ext
+#!include auth-ldap.conf.ext
+#!include auth-system.conf.ext
+#!include auth-checkpassword.conf.ext
+#!include auth-vpopmail.conf.ext
+#!include auth-static.conf.ext
+EOF
 
-echo "Setting up dovecot-sql.conf.ext"
+echo "Setting up /etc/dovecot/dovecot-sql.conf.ext"
 cat <<EOF >/etc/dovecot/dovecot-sql.conf.ext
 driver = mysql
 connect = host=${DB_HOST} port=${DB_PORT} dbname=${DB_NAME} user=${DB_USER} password=${DB_PASS}
@@ -74,8 +85,18 @@ iterate_query = SELECT username AS user FROM mailbox
 user_query = SELECT homedir AS home, maildir AS mail, concat('*:bytes=', quota) as quota_rule, ${VMAIL_UID} AS uid, ${VMAIL_GID} AS gid FROM mailbox WHERE username = '%u'
 EOF
 
-echo "Setting userdb overrides"
-sed -i -e 's#^userdb.*#&\n  override_fields = mail_home=/data/mail/%d/%n uid=vmail gid=mail mail_location=maildir:~/mail#g' /etc/dovecot/conf.d/auth-sql.conf.ext 
+echo "Setting /etc/dovecot/conf.d/auth-sql.conf.ext"
+cat <<EOF > /etc/dovecot/conf.d/auth-sql.conf.ext 
+passdb {
+  driver = sql
+  args = /etc/dovecot/dovecot-sql.conf.ext
+}
+userdb {
+  override_fields = mail_home=/data/mail/%d/%n uid=vmail gid=mail mail_location=maildir:~/mail
+  driver = sql
+  args = /etc/dovecot/dovecot-sql.conf.ext
+}
+EOF
 
 echo "Enabling doveadm listener"
 cat <<EOF >/etc/dovecot/conf.d/91-doveadm.conf
@@ -100,13 +121,14 @@ if [ ! -f /data/ssl/dovecot.pem ] || [ ! -f /data/ssl/dovecot.key ]; then
 	openssl x509 -req -days 3650 -in /data/ssl/${SSL_CRT_FILENAME%.*}.csr -signkey /data/ssl/$SSL_KEY_FILENAME -out /data/ssl/$SSL_CRT_FILENAME
 fi
 echo "Setting new certificate location"
-sed -i \
-  -e 's#^ssl_cert.*$#ssl_cert = </data/ssl/dovecot.crt#g' \
-  -e 's#^ssl_key.*$#ssl_key = </data/ssl/dovecot.key#g' \
- /etc/dovecot/conf.d/10-ssl.conf
+cat <<EOF > /etc/dovecot/conf.d/10-ssl.conf
+ssl = required
+ssl_cert = </data/ssl/dovecot.crt
+ssl_key = </data/ssl/dovecot.key
+EOF
 
 echo "Setting lmtp listener"
-cat <<EOF >/etc/dovecot/conf.d/20-lmtp.conf
+cat <<EOF > /etc/dovecot/conf.d/20-lmtp.conf
 service lmtp {
   inet_listener lmtp {
      port = 24
@@ -123,9 +145,13 @@ protocol lmtp {
 EOF
 
 echo "Adding auth inet listener"
-if ! grep "port = 12345" >/dev/nill; then
-  sed -i '/service auth {/a\ inet_listener {\nport = 12345\n }' /etc/dovecot/conf.d/10-master.conf
-fi
+cat <<EOF > /etc/dovecot/conf.d/20-auth_inet_listener.conf
+service auth {
+ inet_listener {
+   port = 12345
+ }
+}
+EOF
 
 cp -r /configfiles/sieve/* /data/sieve
 chown -R vmail:mail /data
