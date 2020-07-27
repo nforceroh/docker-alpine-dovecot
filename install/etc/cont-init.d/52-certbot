@@ -1,0 +1,32 @@
+#!/usr/bin/with-contenv bash
+
+echo "Checking if certbot enabled"
+CERTBOT_ENABLE=${CERTBOT_ENABLE:-false}
+CERTBOT_CF_TOKEN=${CERTBOT_CF_TOKEN:-false}
+CERTBOT_EMAIL=${CERTBOT_EMAIL:-false}
+
+CERTBOT_ENABLE=`echo ${CERTBOT_ENABLE} | tr [:upper:] [:lower:]`
+
+if [ "${CERTBOT_ENABLE}" = "true" ]; then
+    if [ "${CERTBOT_CF_TOKEN}" != "false" ]; then
+        echo "Saving Cloudflare API token to /data/cf.ini"
+        echo "dns_cloudflare_api_token = ${CERTBOT_CF_TOKEN}" > /data/cf.ini
+        if [ "${CERTBOT_EMAIL}" != "false" ]; then
+            echo "Generating SSL certificate"
+            certbot certonly -n --agree-tos -m ${CERTBOT_EMAIL} --dns-cloudflare --dns-cloudflare-credentials /data/cf.ini -d ${FQDN}
+            postconf smtpd_tls_cert_file="/etc/letsencrypt/live/${FQDN}/fullchain.pem"
+            postconf smtpd_tls_key_file="/etc/letsencrypt/live/${FQDN}/privkey.pem"
+        fi
+    else
+        echo "No key defined, skipping certbot setup"
+        exit 1
+    fi
+    echo "Creating cronjob"
+    echo "#!/bin/sh" >/etc/periodic/daily/certbot
+    echo "certbot certonly -n --agree-tos -m \${CERTBOT_EMAIL} --dns-cloudflare --dns-cloudflare-credentials /data/cf.ini -d \${FQDN}" >> /etc/periodic/daily/certbot
+    echo "postfix reload" >> /etc/periodic/daily/certbot
+    chmod 755 /etc/periodic/daily/certbot
+else 
+    echo "certbot automation not enabled"
+    exit 0
+fi
