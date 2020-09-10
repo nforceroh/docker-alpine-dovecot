@@ -1,11 +1,11 @@
-FROM nforceroh/d_alpine-s6:dev
+FROM nforceroh/d_alpine-s6:edge
 LABEL maintainer="Sylvain Martin (sylvain@nforcer.com)"
 
 ENV UMASK=000 \
 	PUID=3001 \
 	PGID=3000 \
 	TZ=America/New_York \
-	DB_HOST=maridb \
+	DB_HOST=mariadb \
 	DB_PORT=3306 \
 	DB_NAME=mail \
 	DB_USER=user \
@@ -23,18 +23,16 @@ RUN echo "Installing Dovecot" \
 	&& apk add --no-cache dovecot dovecot-mysql dovecot-lmtpd dovecot-pigeonhole-plugin mariadb-client \
 		rspamd-client ca-certificates \
 	&& update-ca-certificates \
-	&& ln -s /data/letsencrypt /etc/letsencrypt \
+	&& ln -s /data/ssl /etc/letsencrypt \
 	&& apk add --no-cache certbot \
 ### Create Vmail User
 	&& adduser -S -D -H -u ${VMAIL_UID} -G mail -g "Dovecot vMail" vmail \
-### Setup Container for Dovecot
-#	mkdir -p /var/lib/dovecot && \
 	&& mkdir -p /var/log/dovecot \
 ### cloudflare deps
 	&& apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libffi-dev openssl-dev \
     && pip install certbot-dns-cloudflare \
 ### Cleanup
-    && apk del .build-deps gcc musl-dev \
+    && apk del .build-deps \
 	&& rm -rf /var/cache/apk/* /usr/src/*
 
 ### Add Files
