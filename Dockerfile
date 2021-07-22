@@ -29,8 +29,8 @@ RUN echo "Installing Dovecot" \
 	&& adduser -S -D -H -u ${VMAIL_UID} -G mail -g "Dovecot vMail" vmail \
 	&& mkdir -p /var/log/dovecot \
 ### cloudflare deps
-	&& apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libffi-dev openssl-dev \
-    && pip install certbot-dns-cloudflare \
+	&& apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev py3-pip libffi-dev openssl-dev \
+    && python3 -m pip install certbot-dns-cloudflare \
 ### Cleanup
     && apk del .build-deps \
 	&& rm -rf /var/cache/apk/* /usr/src/*

@@ -123,8 +123,8 @@ fi
 echo "Setting new certificate location"
 cat <<EOF > /etc/dovecot/conf.d/10-ssl.conf
 ssl = required
-ssl_cert = </data/ssl/dovecot.crt
-ssl_key = </data/ssl/dovecot.key
+ssl_cert = </etc/letsencrypt/live/${FQDN}/fullchain.pem
+ssl_key = </etc/letsencrypt/live/${FQDN}/privkey.pem
 EOF
 
 echo "Setting lmtp listener"
